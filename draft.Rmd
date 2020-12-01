@@ -1,0 +1,133 @@
+---
+title: "draft"
+author: "Lin Chih-Hsuan"
+date: "11/30/2020"
+output: html_document
+---
+
+```{r}
+packages = c("tmap", "tidyverse", "sf", "rgdal","spatstat", "raster", "maptools", "rgeos", "dplyr", "spatstat", "OpenStreetMap", "tmaptools", "dplyr", "geosphere", "leaflet")
+for (p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p,character.only = T)
+}
+```
+
+```{r}
+shipdata <- read.csv("ships.csv")
+```
+
+```{r}
+choices <- sort(unique(shipdata$ship_type))
+```
+
+```{r}
+shipdata1 <- rbind(shipdata, c(""))
+```
+
+```{r}
+shipdata2 <- rbind(c(""), shipdata)
+```
+
+```{r}
+shipdata2_sub <- shipdata2 %>%
+  dplyr::select(LAT, LON, SHIPNAME, DATETIME) %>%
+  rename(LAT2= LAT, LON2 = LON, SHIPNAME2 = SHIPNAME, DATETIME2 = DATETIME)
+```
+
+```{r}
+shipdata3 <- bind_cols(shipdata1, shipdata2_sub)
+```
+
+```{r}
+summary(shipdata3)
+```
+
+```{r}
+shipdata3$LAT <- as.numeric(shipdata3$LAT)
+shipdata3$LON <- as.numeric(shipdata3$LON)
+shipdata3$SPEED <- as.numeric(shipdata3$SPEED)
+shipdata3$COURSE <- as.numeric(shipdata3$COURSE)
+shipdata3$HEADING <- as.numeric(shipdata3$HEADING)
+shipdata3$LENGTH <- as.numeric(shipdata3$LENGTH)
+shipdata3$SHIP_ID <- as.numeric(shipdata3$SHIP_ID)
+shipdata3$WIDTH <- as.numeric(shipdata3$WIDTH)
+shipdata3$DWT <- as.numeric(shipdata3$DWT)
+shipdata3$week_nb <- as.numeric(shipdata3$week_nb)
+shipdata3$is_parked <- as.numeric(shipdata3$is_parked)
+shipdata3$LAT2 <- as.numeric(shipdata3$LAT2)
+shipdata3$LON2 <- as.numeric(shipdata3$LON2)
+```
+
+```{r}
+shipdata3$DATETIME <- as.POSIXct(shipdata3$DATETIME,format="%Y-%m-%dT%H:%M:%OS")
+shipdata3$DATETIME2 <- as.POSIXct(shipdata3$DATETIME2,format="%Y-%m-%dT%H:%M:%OS")
+```
+
+```{r}
+shipdata3$date <- as.Date(shipdata3$date)
+```
+
+```{r}
+summary(shipdata3)
+```
+
+```{r}
+shipdata4 <- shipdata3 %>%
+  mutate(DISTANCE = distHaversine(cbind(LON, LAT), cbind(LON2, LAT2)))
+```
+
+```{r}
+# saveRDS(shipdata4, "data/shipdata4.rds")
+shipdata4 <- readRDS("data/shipdata4.rds")
+```
+
+```{r}
+ship_final <- shipdata4 %>%
+  filter(SHIPNAME == SHIPNAME2)
+```
+
+```{r}
+saveRDS(ship_final, "data/ship_final.rds")
+# ship_final <- readRDS("data/ship_final.rds")
+```
+
+```{r}
+ship_max_distance <- ship_final %>%
+  group_by(SHIPNAME) %>%
+  filter(DISTANCE == max(DISTANCE)) %>%
+  filter(DATETIME == max(DATETIME))
+```
+
+```{r}
+saveRDS(ship_max_distance, "data/ship_max_distance.rds")
+# ship_max_distance <- readRDS("data/ship_max_distance.rds")
+```
+
+```{r}
+leaflet() %>% 
+  addTiles() %>%
+  addMarkers(data = ship_final[1,],
+             lat =  ~LAT,
+             lng = ~LON,
+             popup = ~SHIPNAME) %>%
+  addMarkers(data = ship_final[1,],
+             lat =  ~LAT2,
+             lng = ~LON2,
+             popup = ~SHIPNAME)
+```
+
+```{r}
+ship_max_distance_selected <- ship_max_distance %>%
+            filter(SHIPNAME == "BOB")
+```
+
+```{r}
+ship_distance <- data.frame(
+            group = c("Start Point", "End Point"),
+            lat = c(ship_max_distance_selected$LAT, ship_max_distance_selected$LAT2),
+            lon = c(ship_max_distance_selected$LON, ship_max_distance_selected$LON2))
+```
+
