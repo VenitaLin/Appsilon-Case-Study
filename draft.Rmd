@@ -127,8 +127,6 @@ ship_max_distance_selected <- ship_max_distance %>%
 ```{r}
 ship_distance_map <- ship_max_distance %>%
   dplyr::select(SHIPNAME, LAT, LON, LAT2, LON2, DISTANCE) %>%
-  # unite(lat_combined, c(LAT, LAT2)) %>%
-  # unite(lon_combined, c(LON, LON2)) %>%
   mutate(lat_combined = paste(LAT,",", LAT2)) %>%
   mutate(lon_combined = paste(LON,",", LON2)) %>%
   mutate(group = "start, end")
