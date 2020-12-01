@@ -3,40 +3,53 @@
 library(semantic.dashboard)
 library(dplyr)
 library(leaflet)
+library(plotly)
+library(reshape2)
+library(tidyverse)
+library(shinycssloaders)
 #==============================================================================
 
-# shipdata <- read.csv("data/ships.csv")
-# saveRDS(shipdata, "data/shipdata.rds")
-# shipdata <- readRDS("data/shipdata.rds")
-# ship_final <- readRDS("data/ship_final.rds")
+# LOAD DATA
+#==============================================================================
+ship_final <- readRDS("data/ship_final.rds")
 ship_max_distance <- readRDS("data/ship_max_distance.rds")
+ship_distance_map <- readRDS("data/ship_distance_map.rds")
+#==============================================================================
 
 # UI
 #==============================================================================
 ui <- fluidPage(
-    
+    tags$head(tags$style(
+        HTML('
+         #sidebar {
+            background-color: rgba(52, 149, 255, 0.1);
+        }
+        ')
+    )),
     # Application title
     titlePanel("Vessel Information"),
     
     sidebarLayout(
         position = "right",
         sidebarPanel(
+            id = "sidebar",
             selectInput("ship_type", 
                         "Vessel Type:",
-                        sort(unique(ship_max_distance$ship_type))
-                        # c("Loading..." = "Cargo") # Placeholder
+                        sort(unique(ship_max_distance$ship_type)),
+                        selected = "Cargo"
             ),
             selectInput("ship", 
                         "Vessel:",
-                        choices=NULL
-                        # selected=NULL
+                        choices=NULL,
+                        selected = ".PRINCE OF WAVES"
             )
         ),
         mainPanel(
-            h4("Longest Distance Between Two Consecutive Observations"),
-            leafletOutput("map"),
-            # h4("Vessel Details"),
-            textOutput('desc')
+            tabsetPanel(type = "tabs",
+                tabPanel("Longest Distance Sailed", h4("Longest Distance Between Two Consecutive Observations"), leafletOutput("map") %>% withSpinner(color="#3495FF"), textOutput('desc')),
+                tabPanel("Vessel Speed Timeseries", plotlyOutput("speed") %>% withSpinner(color="#3495FF")),
+                tabPanel("Vessel Course Timeseries", plotlyOutput("course") %>% withSpinner(color="#3495FF"))
+            )
         )
     )
 )
@@ -51,26 +64,25 @@ server <- function(input, output, session) {
                           choices = sort(unique(ship_max_distance$SHIPNAME[ship_max_distance$ship_type==input$ship_type]))                          )
     } )
     
-    
-    
     output$map <- renderLeaflet({
         
         oceanIcons <- iconList(
             ship = makeIcon("data/ship-icon.png", "data/ship-icon.png", 25, 25)
         )
         
-        # FILTER SHIP
+# FILTER SHIP
 # ================================================================================
         ship_max_distance_selected <- ship_max_distance %>%
             filter(SHIPNAME == input$ship)
-        
-        ship_distance <- data.frame(
-            "group" = c("Start Point", "End Point"),
-            "lat" = c(ship_max_distance_selected$LAT, ship_max_distance_selected$LAT2),
-            "lon" = c(ship_max_distance_selected$LON, ship_max_distance_selected$LON2),
-            "distance" = c(ship_max_distance_selected$DISTANCE))
+
+        ship_distance <- ship_final %>%
+            filter(SHIPNAME == input$ship) %>%
+            filter(DATETIME == ship_max_distance_selected$DATETIME |
+                       DATETIME == ship_max_distance_selected$DATETIME2)
+    
 # ================================================================================
-        # MAP
+
+# MAP
 # ================================================================================
         leaflet() %>% 
             addTiles() %>%
@@ -82,19 +94,22 @@ server <- function(input, output, session) {
                        ) %>%
             addMarkers(data = ship_max_distance_selected,
                        icon = ~oceanIcons["ship"],
-                       lat =  ~LAT2,
+                       lat = ~LAT2,
                        lng = ~LON2,
                        popup = paste("Vessel Name: ",ship_max_distance_selected$SHIPNAME,"<br> Datetime: ", ship_max_distance_selected$DATETIME2) 
                         ) %>%
-            addPolylines(data = ship_distance, 
-                         lng = ~lon, 
-                         lat = ~lat, 
-                         group = ~group,
+            addPolylines(data = ship_distance,
+                         lng = ~LON,
+                         lat = ~LAT,
+                         group = ~SHIPNAME,
                          weight = 3,
-                         color = "white",
-                         label = ~round(distance,2))
+                         color = "rgb(52, 149, 255)",
+                         )
     })
-    
+#==============================================================================
+
+# NOTES    
+#==============================================================================
     output$desc <- renderText({
         # FILTER SHIP
         # ================================================================================
@@ -103,6 +118,45 @@ server <- function(input, output, session) {
         # ================================================================================
         paste("Longest Distance: ", round(ship_max_distance_selected$DISTANCE, 2), " meters")
     })
+#==============================================================================
+    
+# SPEED PLOT
+#==============================================================================
+    output$speed <- renderPlotly({
+        
+        selected_shipdata <- ship_final %>%
+            filter(SHIPNAME == input$ship)
+        
+        plot_ly(selected_shipdata,
+                x = ~DATETIME,
+                y = ~SPEED,
+                type = 'scatter',
+                mode = 'lines+markers',
+                marker = list(size = 4,
+                              color = 'rgb(52, 149, 255)'),
+                line = list(size = 2)
+                )
+    })
+#==============================================================================
+    
+# COURSE PLOT
+#==============================================================================
+    output$course <- renderPlotly({
+        
+        selected_shipdata <- ship_final %>%
+            filter(SHIPNAME == input$ship)
+        
+        plot_ly(selected_shipdata,
+                x = ~DATETIME,
+                y = ~COURSE,
+                type = 'scatter',
+                mode = 'lines+markers',
+                marker = list(size = 4,
+                              color = 'rgb(52, 149, 255)'),
+                line = list(size = 2)
+        )
+    })
+#==============================================================================
 }
 #==============================================================================
 

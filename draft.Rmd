@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r}
-packages = c("tmap", "tidyverse", "sf", "rgdal","spatstat", "raster", "maptools", "rgeos", "dplyr", "spatstat", "OpenStreetMap", "tmaptools", "dplyr", "geosphere", "leaflet")
+packages = c("tmap", "tidyverse", "sf", "rgdal","spatstat", "raster", "maptools", "rgeos", "dplyr", "spatstat", "OpenStreetMap", "tmaptools", "dplyr", "geosphere", "leaflet", "plotly")
 for (p in packages){
   if(!require(p, character.only = T)){
     install.packages(p)
@@ -102,8 +102,8 @@ ship_max_distance <- ship_final %>%
 ```
 
 ```{r}
-saveRDS(ship_max_distance, "data/ship_max_distance.rds")
-# ship_max_distance <- readRDS("data/ship_max_distance.rds")
+# saveRDS(ship_max_distance, "data/ship_max_distance.rds")
+ship_max_distance <- readRDS("data/ship_max_distance.rds")
 ```
 
 ```{r}
@@ -125,9 +125,26 @@ ship_max_distance_selected <- ship_max_distance %>%
 ```
 
 ```{r}
-ship_distance <- data.frame(
-            group = c("Start Point", "End Point"),
-            lat = c(ship_max_distance_selected$LAT, ship_max_distance_selected$LAT2),
-            lon = c(ship_max_distance_selected$LON, ship_max_distance_selected$LON2))
+ship_distance_map <- ship_max_distance %>%
+  dplyr::select(SHIPNAME, LAT, LON, LAT2, LON2, DISTANCE) %>%
+  # unite(lat_combined, c(LAT, LAT2)) %>%
+  # unite(lon_combined, c(LON, LON2)) %>%
+  mutate(lat_combined = paste(LAT,",", LAT2)) %>%
+  mutate(lon_combined = paste(LON,",", LON2)) %>%
+  mutate(group = "start, end")
 ```
 
+```{r}
+summary(ship_distance_map)
+```
+
+```{r}
+saveRDS(ship_distance_map, "data/ship_distance_map.rds")
+# ship_distance_map <- readRDS("data/ship_distance_map.rds")
+```
+
+```{r}
+ship_distance <- ship_final %>%
+      filter(SHIPNAME == ship_max_distance_selected$SHIPNAME) %>%
+      filter(DATETIME == ship_max_distance_selected$DATETIME | DATETIME == ship_max_distance_selected$DATETIME2)
+```

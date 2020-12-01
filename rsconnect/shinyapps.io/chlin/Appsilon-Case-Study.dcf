@@ -5,9 +5,9 @@ account: chlin
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 3329237
-bundleId: 3927114
+bundleId: 3927943
 url: https://chlin.shinyapps.io/Appsilon-Case-Study/
-when: 1606819854.59442
+when: 1606835461.20615
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .gitattributes|.RData|draft.Rmd
+ignoredFiles: .gitattributes|.RData|draft.Rmd|executing|last-used|running
